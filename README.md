@@ -54,3 +54,5 @@ Para rodar a simulação em modo batch utilize o comando:
 
 python run_batch.py
 ```
+
+git subtree pull --prefix experiments/gutorsantos/labs/VoN-Vaccine https://github.com/gutorsantos/virus_on_network-vaccine.git main --squash

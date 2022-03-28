@@ -26,9 +26,7 @@ class VirusOnNetwork(Model):
         avg_node_degree=3,
         initial_outbreak_size=1,
         virus_spread_chance=0.4,
-        virus_check_frequency=0.4,
         recovery_chance=0.3,
-        gain_resistance_chance=0.5,
         vaccinated_rate=0.1,
         vaccine_effectiveness_rate=0.5,
         virus_lethality_rate=0.5
@@ -43,9 +41,7 @@ class VirusOnNetwork(Model):
             initial_outbreak_size if initial_outbreak_size <= num_nodes else num_nodes
         )
         self.virus_spread_chance = virus_spread_chance
-        self.virus_check_frequency = virus_check_frequency
         self.recovery_chance = recovery_chance
-        self.gain_resistance_chance = gain_resistance_chance
 
         self.vaccinated_rate = vaccinated_rate
         self.vaccine_effectiveness_rate = vaccine_effectiveness_rate
@@ -68,9 +64,7 @@ class VirusOnNetwork(Model):
                 self,
                 State.UNVACCINATED_SUSCEPTIBLE,
                 self.virus_spread_chance,
-                self.virus_check_frequency,
                 self.recovery_chance,
-                self.gain_resistance_chance,
                 self.vaccine_effectiveness_rate,
                 self.virus_lethality_rate
             )
@@ -115,9 +109,7 @@ class VirusAgent(Agent):
         model,
         initial_state,
         virus_spread_chance,
-        virus_check_frequency,
         recovery_chance,
-        gain_resistance_chance,
         vaccine_effectiveness_rate,
         virus_lethality_rate
     ):
@@ -126,9 +118,7 @@ class VirusAgent(Agent):
         self.state = initial_state
 
         self.virus_spread_chance = virus_spread_chance
-        self.virus_check_frequency = virus_check_frequency
         self.recovery_chance = recovery_chance
-        self.gain_resistance_chance = gain_resistance_chance
         self.vaccine_effectiveness_rate=vaccine_effectiveness_rate
         self.virus_lethality_rate = virus_lethality_rate
         self.days_infected = 0
@@ -155,11 +145,6 @@ class VirusAgent(Agent):
                 if random < reduced_chance:
                     a.state = State.INFECTED
 
-    def try_gain_resistance(self):
-        # impossible to recover with less than 3 days of infection
-        if self.random.random() < self.gain_resistance_chance:
-            self.state = State.RECOVERED
-
     def try_remove_infection(self):
         # impossible to recover in 3 days
         if(self.days_infected < ASSYMPTOMATIC_INFECTED_PERIOD+1):
@@ -174,7 +159,6 @@ class VirusAgent(Agent):
         if self.random.random() < self.recovery_chance:
             # Success
             self.state = State.RECOVERED # self.initial_state
-            # self.try_gain_resistance()
             return True
         else:
             # Failed
@@ -224,19 +208,16 @@ class VirusAgent(Agent):
 def batch_run():
     fixed_params = {
         'avg_node_degree': 10,
-        'virus_check_frequency': 0.4,
-        'gain_resistance_chance': 0.5,
         'recovery_chance': 0.3,
         'num_nodes': 1000,
         'initial_outbreak_size': 1,
         'virus_spread_chance': 0.9,
         'vaccine_effectiveness_rate': 0.9,
         'virus_lethality_rate': 0.2
-
     }
 
     variable_params = {
-        'vaccinated_rate': [0.1, 0.3, 0.5, 0.8, 0.9],
+        'vaccinated_rate': [0, 0.1, 0.5, 0.7, 0.9],
     }
 
     experiments_per_parameter_configuration = 300
@@ -250,21 +231,26 @@ def batch_run():
         max_steps=max_steps_per_simulation,
         model_reporters = {
             'Resistant Susceptible Ratio': resistant_susceptible_ratio,
-            'Alive Dead Ratio': dead_alive
+            'Alive Dead Ratio': alive_per_death,
+            'Mortality': mortality,
+            'Infected': number_infected,
+            'Unvaccinated Susceptible': number_unvaccinated_susceptible,
+            'Vaccinated Susceptible': number_vaccinated_susceptible,
+            'Recovered': number_recovered,
+            'Dead': number_dead
         },
         agent_reporters = {
             'State': 'state'
-            # 'Unvaccinated Susceptible': 'number_unvaccinated_susceptible',
-            # 'Vaccinated Susceptible': 'number_vaccinated_susceptible',
-            # 'Recovered': 'number_recovered',
-            # 'Dead': 'number_dead'
         }
     )
+    # run
     batch_run.run_all()
 
+    # collect data
     run_model_data = batch_run.get_model_vars_dataframe()
     run_agent_data = batch_run.get_agent_vars_dataframe()
 
+    # csv file name
     now = str(datetime.now())
     file_name_suffix =  ('_iter_'+str(experiments_per_parameter_configuration)+
                         '_steps_'+str(max_steps_per_simulation)+'_'+

@@ -8,7 +8,7 @@ from mesa.visualization.modules import NetworkModule
 from mesa.visualization.modules import TextElement
 
 from virus_on_network.states import State, StateColor
-from virus_on_network.variables.model_variables import dead_alive, resistant_susceptible_ratio
+from virus_on_network.variables.model_variables import mortality, resistant_susceptible_ratio
 from .model import VirusOnNetwork, number_infected
 
 
@@ -81,8 +81,8 @@ class MyTextElement(TextElement):
 
         text = ('Resistant/Susceptible Ratio: {}<br> \
                 Infected Remaining: {}<br> \
-                Alive/Dead Ratio: {}').format(
-            ratio_text, infected_text, str(dead_alive(model))
+                Mortalidade: {}').format(
+            ratio_text, infected_text, str(mortality(model))
         )
 
         return text
@@ -119,15 +119,6 @@ model_params = {
         0.1,
         description="Probability that susceptible neighbor will be infected",
     ),
-    "virus_check_frequency": UserSettableParameter(
-        "slider",
-        "Virus Check Frequency",
-        0.4,
-        0.0,
-        1.0,
-        0.1,
-        description="Frequency the nodes check whether they are infected by " "a virus",
-    ),
     "recovery_chance": UserSettableParameter(
         "slider",
         "Recovery Chance",
@@ -136,16 +127,6 @@ model_params = {
         1.0,
         0.1,
         description="Probability that the virus will be removed",
-    ),
-    "gain_resistance_chance": UserSettableParameter(
-        "slider",
-        "Gain Resistance Chance",
-        0.5,
-        0.0,
-        1.0,
-        0.1,
-        description="Probability that a recovered agent will become "
-        "resistant to this virus in the future",
     ),
     "vaccinated_rate": UserSettableParameter(
         "slider",
