@@ -17,19 +17,21 @@ from .states import State
 from .variables.model_variables import *
 from .variables.agent_variables import *
 
+from .calculate_normal import calculate_normal
+
 class VirusOnNetwork(Model):
     '''A virus model with some number of agents'''
 
     def __init__(
         self,
-        num_nodes=10,
-        avg_node_degree=3,
-        initial_outbreak_size=1,
-        virus_spread_chance=0.4,
-        recovery_chance=0.3,
-        vaccinated_rate=0.1,
-        vaccine_effectiveness_rate=0.5,
-        virus_lethality_rate=0.5
+        num_nodes,
+        avg_node_degree,
+        initial_outbreak_size,
+        virus_spread_chance,
+        recovery_chance,
+        vaccinated_rate,
+        vaccine_effectiveness_rate,
+        virus_lethality_rate
     ):
 
         self.num_nodes = num_nodes
@@ -128,12 +130,15 @@ class VirusAgent(Agent):
         # there is no sufficent viral charge
         if(self.days_infected < ASSYMPTOMATIC_INFECTED_PERIOD+1):
             return
+        if(self.days_infected > 15):
+            return
         neighbors_nodes = self.model.grid.get_neighbors(self.pos, include_center=False)
         susceptible_neighbors = [
             agent
             for agent in self.model.grid.get_cell_list_contents(neighbors_nodes)
             if agent.state is State.UNVACCINATED_SUSCEPTIBLE or agent.state is State.VACCINATED_SUSCEPTIBLE
         ]
+
         # a unvaccinated person is more susceptible to get infected
         for a in susceptible_neighbors:
             if a.state == State.UNVACCINATED_SUSCEPTIBLE:
@@ -150,60 +155,39 @@ class VirusAgent(Agent):
         if(self.days_infected < ASSYMPTOMATIC_INFECTED_PERIOD+1):
             return False
 
-        # impossible to be infected more than 15 days
-        if(self.days_infected > MAX_INFECTION_PERIOD):
-            self.state = State.RECOVERED
-            return True
-
-        #TODO: modelar um equacao que aumente a chance de recurepacao com o passar dos dias
         if self.random.random() < self.recovery_chance:
             # Success
-            self.state = State.RECOVERED # self.initial_state
+            self.state = State.RECOVERED
             return True
-        else:
-            # Failed
-            self.state = State.INFECTED
-            return False
+        return False
 
     def death(self):
         if(self.days_infected < ASSYMPTOMATIC_INFECTED_PERIOD+1):
-            return
-        # Try to remove
-        #TODO: modelar um equacao que aumente a chance de morte no ponto critico da doenca (7 dias depois dos sintomas)
-        j = 0.1
-        if(self.days_infected == 2 or self.days_infected == 16):
-            j = 0.1
-        if(self.days_infected == 3 or self.days_infected == 15):
-            j = 0.2
-        if(self.days_infected == 4 or self.days_infected == 14):
-            j = 0.3
-        if(self.days_infected == 5 or self.days_infected == 13):
-            j = 0.4
-        if(self.days_infected == 6 or self.days_infected == 12):
-            j = 0.7
-        if(self.days_infected == 7 or self.days_infected == 11):
-            j = 0.8
-        if(self.days_infected == 8 or self.days_infected == 10):
-            j = 0.9
+            return False
+        if(self.days_infected > 15):
+            return False
 
-        death_chance = (self.virus_lethality_rate * j)/4 if self.initial_set_state == State.VACCINATED_SUSCEPTIBLE else self.virus_lethality_rate * j
+        prob = calculate_normal(self.days_infected)
+        death_chance = prob/4 if self.initial_set_state == State.VACCINATED_SUSCEPTIBLE else prob
         random = self.random.random()
 
         if random < death_chance:
             self.state = State.DEAD
+            return True
+        
+        return False
 
     def try_check_situation(self):
-        if self.state is State.INFECTED:
-            if(not self.try_remove_infection()):
-                self.death()
+        if(not self.death()):
+            self.try_remove_infection()
+                
                     
 
     def step(self):
         if self.state is State.INFECTED:
             self.days_infected = self.days_infected + 1
-            # print('days infected', self.days_infected, self.unique_id)
             self.try_to_infect_neighbors()
-        self.try_check_situation()
+            self.try_check_situation()
 
 def batch_run():
     fixed_params = {
